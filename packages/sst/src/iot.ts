@@ -57,6 +57,15 @@ export const useIOT = Context.memo(async () => {
   device.on("error", (err) => {
     Logger.debug("IoT error", err);
   });
+
+  device.on("close", () => {
+    Logger.debug("IoT closed");
+  });
+
+  device.on("reconnect", () => {
+    Logger.debug("IoT reconnected");
+  });
+
   device.on("message", (_topic, buffer: Buffer) => {
     const fragment = JSON.parse(buffer.toString());
     if (!fragment.id) {
