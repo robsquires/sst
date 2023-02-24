@@ -49,6 +49,13 @@ import {
   CacheQueryStringBehavior,
   CacheHeaderBehavior,
   CacheCookieBehavior,
+  FunctionEventType,
+  FunctionCode,
+  OriginRequestPolicy,
+  Function as CloudfrontFunction,
+  OriginRequestCookieBehavior,
+  OriginRequestQueryStringBehavior,
+  OriginRequestHeaderBehavior,
 } from "aws-cdk-lib/aws-cloudfront";
 import { ICertificate } from "aws-cdk-lib/aws-certificatemanager";
 import { AwsCliLayer } from "aws-cdk-lib/lambda-layer-awscli";
@@ -817,6 +824,32 @@ export class SsrSite extends Construct implements SSTConstruct {
     });
 
     return {
+      functionAssociations: [
+        {
+          eventType: FunctionEventType.VIEWER_REQUEST,
+          function: new CloudfrontFunction(this, "CloudfrontFunction", {
+            code: FunctionCode.fromInline(
+              `function handler(event) {
+                    var request = event.request;
+                    request.headers["x-forwarded-host"] = request.headers.host;
+                    return request;
+                  }`
+            ),
+          }),
+        },
+      ],
+      originRequestPolicy: new OriginRequestPolicy(
+        this,
+        "OriginRequestPolicy",
+        {
+          cookieBehavior: OriginRequestCookieBehavior.all(),
+          queryStringBehavior: OriginRequestQueryStringBehavior.all(),
+          headerBehavior: OriginRequestHeaderBehavior.allowList(
+            "X-Forwarded-Host",
+            "Referer"
+          ),
+        }
+      ),
       viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       origin: new HttpOrigin(Fn.parseDomainName(fnUrl.url)),
       allowedMethods: AllowedMethods.ALLOW_ALL,
